@@ -1,0 +1,39 @@
+name: Deploy live preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopen]
+
+jobs:
+  build-php:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build the PHP Docker image
+      run: |
+        docker login docker.pkg.github.com -u ${{ secrets.GITHUB_USERNAME }} -p ${{ secrets.GITHUB_TOKEN }}
+        cd api
+        docker pull docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master || true
+        docker build . \
+          --file Dockerfile \
+          --tag docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-${GITHUB_REF##*/} \
+          --target api_platform_php \
+          --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master
+        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-${GITHUB_REF##*/}
+  build-nginx:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build the Nginx Docker image
+      run: |
+        docker login docker.pkg.github.com -u ${{ secrets.GITHUB_USERNAME }} -p ${{ secrets.GITHUB_TOKEN }}
+        cd api
+        docker pull docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master || true
+        docker pull docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master || true
+        docker build . \
+        --file Dockerfile \
+        --tag docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-${GITHUB_REF##*/} \
+        --target api_platform_nginx \
+        --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master \
+        --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master
+        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-${GITHUB_REF##*/}
