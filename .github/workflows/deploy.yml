@@ -37,3 +37,29 @@ jobs:
         --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master \
         --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master
         docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-${GITHUB_REF##*/}
+  
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ['build-php', 'build-nginx']
+    steps:
+      - name: deploy docker images
+        uses: appleboy/ssh-action@master
+        with:
+          envs: GITHUB_REF
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: GITHUB_REF=$GITHUB_REF /home/ubuntu/live-demo/deploy-branch.sh
+      - name: Post link in comments
+        env:
+            URL: ${{ github.event.pull_request.comments_url }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            BODY: "⚡️[Preview environment available](https://${{ github.event.pull_request.head.ref }}.preview.theo.do)⚡️"
+        run: |
+          curl -XGET $URL \
+          -H "Content-Type: application/json" \
+          -H "Authorization: token $GITHUB_TOKEN" | jq -e '.[].body | scan("Preview environment available")' || \
+          BODY=$BODY curl --silent -XPOST $URL \
+          -H "Content-Type: application/json" \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          --data "{ \"body\": \"$BODY\" }"
