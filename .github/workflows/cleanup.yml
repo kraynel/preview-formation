@@ -1,0 +1,20 @@
+name: Clean live preview
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: cleanup
+        uses: appleboy/ssh-action@master
+        env:
+          PULL_REQUEST_REF: ${{ github.event.pull_request.head.ref }}
+        with:
+          envs: PULL_REQUEST_REF
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: GITHUB_REF=$PULL_REQUEST_REF /home/ubuntu/preview-formation/cleanup.sh

@@ -1,4 +1,4 @@
-name: Deploy live preview
+name: Deploy master
 
 on:
   push:

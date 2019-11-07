@@ -44,12 +44,14 @@ jobs:
     steps:
       - name: deploy docker images
         uses: appleboy/ssh-action@master
+        env:
+          BRANCH_REF: ${{ github.event.pull_request.head.ref }}
         with:
-          envs: GITHUB_REF
+          envs: BRANCH_REF
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          script: GITHUB_REF=$GITHUB_REF /home/ubuntu/preview-formation/deploy-branch.sh
+          script: GITHUB_REF=$BRANCH_REF /home/ubuntu/preview-formation/deploy-branch.sh
       - name: Post link in comments
         env:
             URL: ${{ github.event.pull_request.comments_url }}
