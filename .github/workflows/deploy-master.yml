@@ -1,8 +1,9 @@
-name: Deploy live preview
+name: Deploy master
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopen]
+  push:
+    branches: 
+      - master
 
 jobs:
   build-php:
@@ -16,10 +17,10 @@ jobs:
         docker pull docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master || true
         docker build . \
           --file Dockerfile \
-          --tag docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-${{ github.event.pull_request.head.ref }} \
+          --tag docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master \
           --target api_platform_php \
           --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master
-        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-${{ github.event.pull_request.head.ref }}
+        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master
   build-nginx:
     runs-on: ubuntu-latest
     steps:
@@ -32,11 +33,11 @@ jobs:
         docker pull docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master || true
         docker build . \
         --file Dockerfile \
-        --tag docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-${{ github.event.pull_request.head.ref }} \
+        --tag docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master \
         --target api_platform_nginx \
         --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/php-api-platform:preview-master \
         --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master
-        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-${{ github.event.pull_request.head.ref }}
+        docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-api-platform:preview-master
 
   deploy:
     runs-on: ubuntu-latest
@@ -44,24 +45,9 @@ jobs:
     steps:
       - name: deploy docker images
         uses: appleboy/ssh-action@master
-        env:
-          BRANCH_REF: ${{ github.event.pull_request.head.ref }}
         with:
-          envs: BRANCH_REF
+          envs: GITHUB_REF
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          script: GITHUB_REF=$BRANCH_REF /home/ubuntu/preview-formation/deploy-branch.sh
-      - name: Post link in comments
-        env:
-            URL: ${{ github.event.pull_request.comments_url }}
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            BODY: "⚡️[Preview environment available](https://${{ github.event.pull_request.head.ref }}.preview.theo.do)⚡️"
-        run: |
-          curl -XGET $URL \
-          -H "Content-Type: application/json" \
-          -H "Authorization: token $GITHUB_TOKEN" | jq -e '.[].body | scan("Preview environment available")' || \
-          BODY=$BODY curl --silent -XPOST $URL \
-          -H "Content-Type: application/json" \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          --data "{ \"body\": \"$BODY\" }"
+          script: /home/ubuntu/preview-formation/deploy-branch.sh master
